@@ -75,10 +75,14 @@ jobs:
             --add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
         run: |
           set -euo pipefail
-          ./codeql/codeql database run-queries \
-            --threads=1 \
-            --ram=15360 \
-            --no-cache-at-frontier \
-            --rerun \
-            --additional-packs=layout-pack \
-            -- db layout-pack/Layout.ql
+          for trial in 1 2 3 4 5; do
+            echo "HOSTED_LAYOUT_TRIAL_BEGIN trial=$trial"
+            ./codeql/codeql database run-queries \
+              --threads=1 \
+              --ram=15360 \
+              --no-cache-at-frontier \
+              --rerun \
+              --additional-packs=layout-pack \
+              -- db layout-pack/Layout.ql
+            echo "HOSTED_LAYOUT_TRIAL_END trial=$trial"
+          done

@@ -30,13 +30,22 @@ public final class CodeqlLayoutAgent {
     try {
       for (String line : Files.readAllLines(Path.of("/proc/self/maps"))) {
         String[] fields = line.trim().split("\\s+", 6);
-        if (fields.length < 2 || !fields[1].startsWith("rwx")) continue;
+        if (fields.length < 2) continue;
         String[] range = fields[0].split("-", 2);
         long start = Long.parseUnsignedLong(range[0], 16);
         long end = Long.parseUnsignedLong(range[1], 16);
-        System.err.printf(
-            "HOSTED_LAYOUT_RWX start=0x%x end=0x%x delta=0x%x size=0x%x%n",
-            start, end, start - base, end - start);
+        if (fields[1].startsWith("rwx")) {
+          System.err.printf(
+              "HOSTED_LAYOUT_RWX start=0x%x end=0x%x delta=0x%x size=0x%x%n",
+              start, end, start - base, end - start);
+        }
+        long windowStart = base + bytes;
+        long windowEnd = windowStart + 0x80000000L;
+        if (end > windowStart && start < windowEnd) {
+          System.err.printf(
+              "HOSTED_LAYOUT_MAP start=0x%x end=0x%x delta=0x%x perms=%s%n",
+              start, end, start - base, fields[1]);
+        }
       }
     } catch (Throwable error) {
       System.err.println("HOSTED_LAYOUT_ERROR " + error);
