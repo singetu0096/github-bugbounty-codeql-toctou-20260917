@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Premain-Class: com.semmle.inmemory.alloc.CodeqlLayoutAgent
+Can-Redefine-Classes: false
+Can-Retransform-Classes: false
+

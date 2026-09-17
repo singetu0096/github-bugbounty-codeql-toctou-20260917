@@ -1,0 +1,74 @@
+name: Benign CodeQL native-layout probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record non-secret runner properties
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_arch=$RUNNER_ARCH"
+          echo "nproc=$(nproc)"
+          echo "malloc_arena_max=${MALLOC_ARENA_MAX-<unset>}"
+          awk '/MemTotal/ { print "mem_total_kib=" $2 }' /proc/meminfo
+          ldd --version | head -n 1
+
+      - name: Download exact CodeQL 2.27.0 bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output codeql-bundle.tar.gz \
+            https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.0/codeql-bundle-linux64.tar.gz
+          tar -xzf codeql-bundle.tar.gz
+          ./codeql/codeql version
+
+      - name: Create benign JavaScript database
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./codeql/codeql database create db \
+            --language=javascript \
+            --source-root=. \
+            --overwrite
+          ./codeql/codeql pack install layout-pack
+
+      - name: Build read-only allocation observer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p agent-classes
+          ./codeql/tools/linux64/java/bin/javac \
+            --add-exports java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \
+            -cp ./codeql/tools/codeql.jar \
+            -d agent-classes \
+            agent/src/com/semmle/inmemory/alloc/CodeqlLayoutAgent.java
+          ./codeql/tools/linux64/java/bin/jar \
+            cfm codeql-layout-agent.jar agent/MANIFEST.MF \
+            -C agent-classes .
+
+      - name: Measure exact evaluator layout with a benign query
+        shell: bash
+        env:
+          JAVA_TOOL_OPTIONS: >-
+            -javaagent:${{ github.workspace }}/codeql-layout-agent.jar
+            --add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+        run: |
+          set -euo pipefail
+          ./codeql/codeql database run-queries \
+            --threads=1 \
+            --ram=15360 \
+            --no-cache-at-frontier \
+            --rerun \
+            --additional-packs=layout-pack \
+            -- db layout-pack/Layout.ql
