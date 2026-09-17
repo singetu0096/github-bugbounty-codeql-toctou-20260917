@@ -43,6 +43,16 @@ jobs:
             --overwrite
           ./codeql/codeql pack install layout-pack
 
+      - name: Match the MRVA database pool sizing shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          javac tools/PoolPad.java
+          java -cp tools PoolPad \
+            db/db-javascript/default/pools/0/buckets \
+            2149576704 \
+            1075834880
+
       - name: Build read-only allocation observer
         shell: bash
         run: |
