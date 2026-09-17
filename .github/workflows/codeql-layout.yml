@@ -53,7 +53,7 @@ jobs:
             -cp ./codeql/tools/codeql.jar \
             -d agent-classes \
             agent/src/com/semmle/inmemory/alloc/CodeqlLayoutAgent.java
-          ./codeql/tools/linux64/java/bin/jar \
+          jar \
             cfm codeql-layout-agent.jar agent/MANIFEST.MF \
             -C agent-classes .
 
